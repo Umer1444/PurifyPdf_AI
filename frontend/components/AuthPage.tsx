@@ -39,7 +39,15 @@ const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
       onAuthSuccess();
     } catch (error: any) {
       console.error("Google sign in error:", error);
-      setError(error.message || "Failed to sign in with Google");
+
+      // Check if it's an unauthorized domain error
+      if (error.message.includes("unauthorized-domain")) {
+        setError(
+          "Domain not authorized for Google Sign-In. Please use email/password authentication below or contact support."
+        );
+      } else {
+        setError(error.message || "Failed to sign in with Google");
+      }
     } finally {
       setLoading(false);
     }

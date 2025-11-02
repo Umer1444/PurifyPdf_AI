@@ -12,6 +12,7 @@ import Footer from "@/components/Footer";
 import LoadingAnimation from "@/components/LoadingAnimation";
 import AuthPage from "@/components/AuthPage";
 import { onAuthStateChanged, User } from "@/lib/auth";
+import { API_BASE_URL, healthCheck } from "@/lib/api";
 
 export interface ProcessingState {
   fileId: string | null;
