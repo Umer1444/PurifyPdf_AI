@@ -1,4 +1,4 @@
-// Secure Firebase Authentication System with Environment Variables
+// Secure Firebase Authentication System
 import { initializeApp } from "firebase/app";
 import {
   getAuth,
@@ -12,36 +12,7 @@ import {
   Auth,
 } from "firebase/auth";
 
-// Validate required environment variables
-const requiredEnvVars = [
-  "NEXT_PUBLIC_FIREBASE_API_KEY",
-  "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN",
-  "NEXT_PUBLIC_FIREBASE_PROJECT_ID",
-  "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET",
-  "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID",
-  "NEXT_PUBLIC_FIREBASE_APP_ID",
-];
-
-const missingVars = requiredEnvVars.filter((varName) => !process.env[varName]);
-
-if (missingVars.length > 0) {
-  console.error("❌ Missing Firebase environment variables:", missingVars);
-  console.error(
-    "🔧 Please restart your development server after setting environment variables"
-  );
-
-  // Don't throw error in development, use fallback config
-  if (process.env.NODE_ENV === "development") {
-    console.warn("⚠️ Using fallback Firebase config for development");
-  } else {
-    throw new Error(
-      `Missing required environment variables: ${missingVars.join(", ")}\n` +
-        "Please check your .env.local file and ensure all Firebase config variables are set."
-    );
-  }
-}
-
-// Firebase configuration using environment variables with fallback
+// Firebase configuration - production ready
 const firebaseConfig = {
   apiKey:
     process.env.NEXT_PUBLIC_FIREBASE_API_KEY ||
@@ -61,13 +32,22 @@ const firebaseConfig = {
     process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || "G-HFHL5YRCWP",
 };
 
-console.log("🔥 Firebase config loaded successfully");
-
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
-export const auth: Auth = getAuth(app);
+let app;
+let auth: Auth;
 
-// Custom User interface that matches our app needs
+try {
+  app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  console.log("🔥 Firebase initialized successfully");
+} catch (error) {
+  console.error("❌ Firebase initialization failed:", error);
+  throw new Error("Firebase initialization failed");
+}
+
+export { auth };
+
+// Custom User interface
 export interface User {
   id: string;
   email: string;
@@ -90,8 +70,6 @@ const convertFirebaseUser = (firebaseUser: FirebaseUser): User => {
 
 // Google Sign In
 export const signInWithGoogle = async (): Promise<User> => {
-  console.log("🔥 Starting Google sign in...");
-
   const provider = new GoogleAuthProvider();
   provider.addScope("email");
   provider.addScope("profile");
@@ -100,16 +78,9 @@ export const signInWithGoogle = async (): Promise<User> => {
   });
 
   try {
-    console.log("🔥 Opening Google popup...");
     const result = await signInWithPopup(auth, provider);
     const user = convertFirebaseUser(result.user);
 
-    console.log("✅ Google sign in successful:", {
-      name: user.displayName,
-      email: user.email,
-    });
-
-    // Verify user has email
     if (!user.email) {
       throw new Error("Email is required for authentication");
     }
@@ -129,12 +100,6 @@ export const signInWithEmail = async (
   try {
     const result = await signInWithEmailAndPassword(auth, email, password);
     const user = convertFirebaseUser(result.user);
-
-    // Check if email is verified
-    if (!user.emailVerified) {
-      throw new Error("Please verify your email before signing in");
-    }
-
     return user;
   } catch (error: any) {
     console.error("Email sign in error:", error);
@@ -150,10 +115,6 @@ export const signUp = async (
   try {
     const result = await createUserWithEmailAndPassword(auth, email, password);
     const user = convertFirebaseUser(result.user);
-
-    // Send email verification
-    // await sendEmailVerification(result.user);
-
     return user;
   } catch (error: any) {
     console.error("Sign up error:", error);
@@ -173,23 +134,11 @@ export const logOut = async (): Promise<void> => {
 
 // Auth State Changed Listener
 export const onAuthStateChanged = (callback: (user: User | null) => void) => {
-  console.log("🔥 Setting up Firebase auth state listener...");
-
   return firebaseOnAuthStateChanged(auth, (firebaseUser) => {
-    console.log(
-      "🔥 Firebase auth state changed:",
-      firebaseUser ? "User exists" : "No user"
-    );
-
     if (firebaseUser) {
       const user = convertFirebaseUser(firebaseUser);
-      console.log("✅ Converted user:", {
-        name: user.displayName,
-        email: user.email,
-      });
       callback(user);
     } else {
-      console.log("❌ No authenticated user");
       callback(null);
     }
   });
