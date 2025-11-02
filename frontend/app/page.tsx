@@ -26,7 +26,7 @@ export default function Home() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [authLoading, setAuthLoading] = useState(true);
-  const [debugInfo, setDebugInfo] = useState<string[]>([]);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   const [processingState, setProcessingState] = useState<ProcessingState>({
     fileId: null,
@@ -37,72 +37,43 @@ export default function Home() {
     error: null,
   });
 
-  const addDebugInfo = (info: string) => {
-    console.log(info);
-    setDebugInfo((prev) => [
-      ...prev.slice(-4),
-      `${new Date().toLocaleTimeString()}: ${info}`,
-    ]);
-  };
-
   useEffect(() => {
-    addDebugInfo("🔥 Setting up authentication listener...");
+    console.log("🔥 Initializing Firebase Authentication...");
 
-    // Check if we should bypass auth (for debugging)
-    const bypassAuth =
-      typeof window !== "undefined" &&
-      (window.location.search.includes("bypass=true") ||
-        window.location.hostname === "localhost" ||
-        process.env.NODE_ENV === "development");
+    let unsubscribe: (() => void) | null = null;
 
-    if (bypassAuth) {
-      addDebugInfo("🚀 Bypassing auth for development/localhost");
-      setTimeout(() => {
-        setLoading(false);
-        setAuthLoading(false);
-        setUser({
-          id: "demo-user",
-          email: "demo@example.com",
-          displayName: "Demo User",
-          emailVerified: true,
+    const initAuth = async () => {
+      try {
+        // Set up Firebase auth listener
+        unsubscribe = onAuthStateChanged((user) => {
+          console.log(
+            "🔥 Auth state changed:",
+            user ? "User authenticated" : "No user"
+          );
+          setUser(user);
+          setAuthLoading(false);
+          setAuthError(null);
         });
-      }, 2000);
-      return;
-    }
 
-    try {
-      const unsubscribe = onAuthStateChanged((user) => {
-        addDebugInfo(
-          `🔥 Auth state changed: ${user ? "User logged in" : "No user"}`
-        );
-        setUser(user);
-        setAuthLoading(false); // Auth state is now determined
-      });
-
-      // Show loading animation for 2 seconds, but don't hide auth loading
-      const timer = setTimeout(() => {
-        addDebugInfo("⏰ Loading animation complete");
+        // Show loading animation for minimum 2 seconds for better UX
+        setTimeout(() => {
+          setLoading(false);
+        }, 2000);
+      } catch (error: any) {
+        console.error("❌ Firebase initialization error:", error);
+        setAuthError(error.message || "Authentication service unavailable");
+        setAuthLoading(false);
         setLoading(false);
-      }, 2000);
+      }
+    };
 
-      return () => {
+    initAuth();
+
+    return () => {
+      if (unsubscribe) {
         unsubscribe();
-        clearTimeout(timer);
-      };
-    } catch (error) {
-      addDebugInfo(`❌ Auth setup error: ${error}`);
-      // Fallback: skip auth for now
-      setTimeout(() => {
-        setLoading(false);
-        setAuthLoading(false);
-        setUser({
-          id: "demo-user",
-          email: "demo@example.com",
-          displayName: "Demo User",
-          emailVerified: true,
-        });
-      }, 2000);
-    }
+      }
+    };
   }, []);
 
   const resetState = () => {
@@ -121,42 +92,33 @@ export default function Home() {
     return <LoadingAnimation />;
   }
 
+  // Show error if Firebase failed to initialize
+  if (authError) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
+        <div className="text-center max-w-md">
+          <div className="text-red-400 text-6xl mb-4">🔥</div>
+          <h1 className="text-2xl font-bold text-white mb-4">
+            Service Unavailable
+          </h1>
+          <p className="text-gray-300 mb-6">{authError}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-medium"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // Show auth page if still determining auth state or user is not authenticated
   if (authLoading || !user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex flex-col items-center justify-center p-4">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-4">Debug Info</h1>
-          <div className="bg-black/50 p-4 rounded-lg max-w-md mb-4">
-            {debugInfo.map((info, i) => (
-              <div key={i} className="text-green-400 text-sm font-mono mb-1">
-                {info}
-              </div>
-            ))}
-          </div>
-          <button
-            onClick={() => {
-              addDebugInfo("🚀 Manual bypass triggered");
-              setLoading(false);
-              setAuthLoading(false);
-              setUser({
-                id: "demo-user",
-                email: "demo@example.com",
-                displayName: "Demo User",
-                emailVerified: true,
-              });
-            }}
-            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg mb-4"
-          >
-            Skip Auth (Demo Mode)
-          </button>
-        </div>
-        <AuthPage
-          onAuthSuccess={() => {
-            addDebugInfo("✅ Auth success callback triggered");
-          }}
-        />
-      </div>
+      <AuthPage
+        onAuthSuccess={() => console.log("✅ Authentication successful")}
+      />
     );
   }
 
