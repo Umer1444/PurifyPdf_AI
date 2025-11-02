@@ -1,0 +1,17 @@
+# Optional dependencies for enhanced functionality
+
+# OCR Support (requires Tesseract OCR engine installed on system)
+pytesseract==0.3.10
+
+# Error tracking and monitoring (optional)
+sentry-sdk[fastapi]==1.38.0
+
+# Additional ML libraries for future enhancements
+scikit-image==0.21.0
+easyocr==1.7.0
+
+# Development and testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
+httpx==0.25.1
+pytest-cov==4.1.0
